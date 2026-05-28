@@ -10,6 +10,7 @@ let scannerMode = "order";
 let scannerStream = null;
 let scannerTimer = null;
 let html5Scanner = null;
+let zxingReader = null;
 let toastTimer = null;
 
 const state = {
@@ -81,6 +82,8 @@ function bindEvents() {
   $("closeScannerButton").addEventListener("click", closeScanner);
   $("stopScannerButton").addEventListener("click", closeScanner);
   $("manualBarcodeButton").addEventListener("click", () => handleScannedBarcode($("manualBarcode").value.trim()));
+  $("barcodePhotoButton").addEventListener("click", () => $("barcodePhotoInput").click());
+  $("barcodePhotoInput").addEventListener("change", scanBarcodePhoto);
   document.querySelectorAll(".tabbar button").forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
 }
 
@@ -652,13 +655,16 @@ function createOrderForOpenedClient() {
 async function openScanner(mode) {
   scannerMode = mode;
   $("manualBarcode").value = "";
+  $("barcodePhotoInput").value = "";
+  $("scannerStatus").textContent = "Запускаю камеру...";
   openDialog("scannerDialog");
   $("scannerVideo").classList.add("hidden");
   $("html5Scanner").classList.remove("hidden");
-  if (window.Html5Qrcode) {
-    await startHtml5Scanner();
+  if (window.ZXing && navigator.mediaDevices?.getUserMedia) {
+    await startZxingScanner();
     return;
   }
+  if (window.Html5Qrcode) return startHtml5Scanner();
   if (!navigator.mediaDevices?.getUserMedia) return toast("Камера недоступна, введи штрихкод вручную");
   if (!("BarcodeDetector" in window)) return toast("Сканер не загрузился, введи штрихкод вручную");
   try {
@@ -674,6 +680,38 @@ async function openScanner(mode) {
     }, 700);
   } catch {
     toast("Камера недоступна, введи штрихкод вручную");
+  }
+}
+
+async function startZxingScanner() {
+  try {
+    $("html5Scanner").classList.add("hidden");
+    $("scannerVideo").classList.remove("hidden");
+    const formats = [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.QR_CODE
+    ];
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints, 300);
+    $("scannerStatus").textContent = "Наведи камеру на штрихкод. Лучше держать на расстоянии 20-30 см.";
+    const devices = await zxingReader.listVideoInputDevices();
+    const backCamera = devices.find((device) => /back|rear|environment|зад/i.test(device.label)) || devices.at(-1);
+    await zxingReader.decodeFromVideoDevice(backCamera?.deviceId, $("scannerVideo"), (result) => {
+      if (result) handleScannedBarcode(result.getText());
+    });
+  } catch {
+    if (window.Html5Qrcode) {
+      await startHtml5Scanner();
+    } else {
+      toast("Камера недоступна, попробуй кнопку Фото");
+    }
   }
 }
 
@@ -695,13 +733,13 @@ async function startHtml5Scanner() {
     });
     await html5Scanner.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 260, height: 150 }, aspectRatio: 1.333 },
+      { fps: 12, qrbox: undefined, aspectRatio: 1.333 },
       (decodedText) => handleScannedBarcode(decodedText),
       () => {}
     );
-    toast("Наведи камеру на штрихкод");
+    $("scannerStatus").textContent = "Наведи камеру на штрихкод. Если не берет, нажми Фото.";
   } catch {
-    toast("Разреши доступ к камере или введи штрихкод вручную");
+    toast("Разреши доступ к камере или нажми Фото");
   }
 }
 
@@ -717,10 +755,44 @@ async function stopHtml5Scanner() {
 async function closeScanner() {
   if (scannerTimer) clearInterval(scannerTimer);
   scannerTimer = null;
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch {}
+    zxingReader = null;
+  }
   await stopHtml5Scanner();
   if (scannerStream) scannerStream.getTracks().forEach((track) => track.stop());
   scannerStream = null;
   $("scannerDialog").close();
+}
+
+async function scanBarcodePhoto(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  $("scannerStatus").textContent = "Читаю фото...";
+  try {
+    if (window.Html5Qrcode) {
+      const scanner = html5Scanner || new window.Html5Qrcode("html5Scanner");
+      const result = await scanner.scanFile(file, true);
+      handleScannedBarcode(result);
+      return;
+    }
+    if (window.ZXing) {
+      const reader = new ZXing.BrowserMultiFormatReader();
+      const url = URL.createObjectURL(file);
+      try {
+        const result = await reader.decodeFromImageUrl(url);
+        handleScannedBarcode(result.getText());
+      } finally {
+        URL.revokeObjectURL(url);
+        try { reader.reset(); } catch {}
+      }
+      return;
+    }
+    toast("Сканер фото не загрузился");
+  } catch {
+    $("scannerStatus").textContent = "Не распознал. Сфотографируй ближе и резче или введи вручную.";
+    toast("Не распознал штрихкод на фото");
+  }
 }
 
 function handleScannedBarcode(code) {
