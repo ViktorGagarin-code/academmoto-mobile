@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#111315">
   <title>АкадемМОТО</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=14">
-  <link rel="stylesheet" href="./styles.css?v=14">
+  <link rel="manifest" href="./manifest.webmanifest?v=15">
+  <link rel="stylesheet" href="./styles.css?v=15">
 </head>
 <body>
   <main class="app">
@@ -350,8 +350,11 @@
         <button id="closeScannerButton" class="secondary small" type="button">×</button>
       </div>
       <div id="html5Scanner" class="scanner-box"></div>
-      <video id="scannerVideo" class="scanner-video hidden" playsinline muted></video>
-      <p id="scannerStatus" class="scanner-status">Наведи камеру на штрихкод. Держи телефон дальше, чтобы код был резким.</p>
+      <div id="zxingScannerBox" class="scanner-box hidden">
+        <video id="scannerVideo" class="scanner-video" playsinline muted></video>
+        <div class="scan-mask"></div>
+      </div>
+      <p id="scannerStatus" class="scanner-status">Помести нужный штрихкод ровно в узкую рамку.</p>
       <label>Штрихкод
         <input id="manualBarcode" inputmode="numeric" placeholder="можно ввести вручную">
       </label>
@@ -365,8 +368,8 @@
   </dialog>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="./html5-qrcode.min.js?v=14"></script>
-  <script src="./zxing.min.js?v=14"></script>
-  <script type="module" src="./app.js?v=14"></script>
+  <script src="./html5-qrcode.min.js?v=15"></script>
+  <script src="./zxing.min.js?v=15"></script>
+  <script type="module" src="./app.js?v=15"></script>
 </body>
 </html>

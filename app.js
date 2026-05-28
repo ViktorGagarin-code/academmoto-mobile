@@ -658,7 +658,7 @@ async function openScanner(mode) {
   $("barcodePhotoInput").value = "";
   $("scannerStatus").textContent = "Запускаю камеру...";
   openDialog("scannerDialog");
-  $("scannerVideo").classList.add("hidden");
+  $("zxingScannerBox").classList.add("hidden");
   $("html5Scanner").classList.remove("hidden");
   if (window.ZXing && navigator.mediaDevices?.getUserMedia) {
     await startZxingScanner();
@@ -669,7 +669,7 @@ async function openScanner(mode) {
   if (!("BarcodeDetector" in window)) return toast("Сканер не загрузился, введи штрихкод вручную");
   try {
     $("html5Scanner").classList.add("hidden");
-    $("scannerVideo").classList.remove("hidden");
+    $("zxingScannerBox").classList.remove("hidden");
     scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     $("scannerVideo").srcObject = scannerStream;
     await $("scannerVideo").play();
@@ -700,11 +700,11 @@ async function startZxingScanner() {
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
     zxingReader = new ZXing.BrowserMultiFormatReader(hints, 300);
-    $("scannerStatus").textContent = "Наведи камеру на штрихкод. Лучше держать на расстоянии 20-30 см.";
+    $("scannerStatus").textContent = "Помести только нужный штрихкод в узкую рамку.";
     const devices = await zxingReader.listVideoInputDevices();
     const backCamera = devices.find((device) => /back|rear|environment|зад/i.test(device.label)) || devices.at(-1);
     await zxingReader.decodeFromVideoDevice(backCamera?.deviceId, $("scannerVideo"), (result) => {
-      if (result) handleScannedBarcode(result.getText());
+      if (result && isResultCentered(result)) handleScannedBarcode(result.getText());
     });
   } catch {
     if (window.Html5Qrcode) {
@@ -733,11 +733,11 @@ async function startHtml5Scanner() {
     });
     await html5Scanner.start(
       { facingMode: "environment" },
-      { fps: 12, qrbox: undefined, aspectRatio: 1.333 },
+      { fps: 12, qrbox: { width: 260, height: 110 }, aspectRatio: 1.333 },
       (decodedText) => handleScannedBarcode(decodedText),
       () => {}
     );
-    $("scannerStatus").textContent = "Наведи камеру на штрихкод. Если не берет, нажми Фото.";
+    $("scannerStatus").textContent = "Помести только нужный штрихкод в узкую рамку.";
   } catch {
     toast("Разреши доступ к камере или нажми Фото");
   }
@@ -762,7 +762,22 @@ async function closeScanner() {
   await stopHtml5Scanner();
   if (scannerStream) scannerStream.getTracks().forEach((track) => track.stop());
   scannerStream = null;
+  $("zxingScannerBox").classList.add("hidden");
+  $("html5Scanner").classList.remove("hidden");
   $("scannerDialog").close();
+}
+
+function isResultCentered(result) {
+  const points = result.getResultPoints?.() || [];
+  if (!points.length) return true;
+  const video = $("scannerVideo");
+  const width = video.videoWidth || 1;
+  const height = video.videoHeight || 1;
+  const xs = points.map((point) => point.getX());
+  const ys = points.map((point) => point.getY());
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  return centerX > width * 0.18 && centerX < width * 0.82 && centerY > height * 0.38 && centerY < height * 0.62;
 }
 
 async function scanBarcodePhoto(event) {

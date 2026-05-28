@@ -315,14 +315,15 @@ menu.three {
 
 .scanner-video {
   width: 100%;
-  min-height: 220px;
-  margin: 8px 0 10px;
+  height: 240px;
+  object-fit: cover;
+  margin: 0;
   background: #050607;
-  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
 .scanner-box {
+  position: relative;
   width: 100%;
   min-height: 240px;
   margin: 8px 0 10px;
@@ -334,6 +335,23 @@ menu.three {
 
 .scanner-box video {
   border-radius: 8px;
+}
+
+.scan-mask {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 110px;
+  transform: translateY(-50%);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, .46);
+  pointer-events: none;
+}
+
+#html5Scanner > div:first-child {
+  max-height: 240px;
 }
 
 .scanner-box button,
