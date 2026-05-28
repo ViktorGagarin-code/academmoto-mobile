@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111315">
+  <title>АкадемМОТО</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <section id="loginView" class="screen">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">АкадемМОТО</p>
+          <h1>Мобильный заказ</h1>
+        </div>
+      </header>
+      <form id="loginForm" class="panel">
+        <label>Supabase URL
+          <input id="supabaseUrl" autocomplete="url" value="https://cvsapxucinsypszhepik.supabase.co">
+        </label>
+        <label>Publishable key
+          <input id="supabaseKey" autocomplete="off" value="sb_publishable_HgMLdfGK0XFSEqKchdKX3g_AwIoaYKT">
+        </label>
+        <label>Email
+          <input id="email" type="email" autocomplete="email" value="admin@academmoto.local">
+        </label>
+        <label>Пароль
+          <input id="password" type="password" autocomplete="current-password">
+        </label>
+        <button class="primary" type="submit">Войти</button>
+        <p id="loginError" class="error"></p>
+      </form>
+    </section>
+
+    <section id="mainView" class="screen hidden">
+      <header class="topbar compact">
+        <div>
+          <p class="eyebrow">АкадемМОТО</p>
+          <h1 id="viewTitle">Заказ</h1>
+        </div>
+        <button id="syncButton" class="icon-button" type="button">↻</button>
+      </header>
+
+      <section id="orderView" class="view">
+        <div class="toolbar">
+          <button id="newOrderButton" class="secondary" type="button">Новый</button>
+          <button id="saveOrderButton" class="primary" type="button">Сохранить</button>
+        </div>
+
+        <div class="panel">
+          <div class="grid two">
+            <label>Номер
+              <input id="orderNumber" inputmode="numeric">
+            </label>
+            <label>Дата
+              <input id="orderDate" type="date">
+            </label>
+          </div>
+          <label>Клиент
+            <select id="orderClient"></select>
+          </label>
+          <label>Техника
+            <input id="orderVehicle" placeholder="Марка / VIN">
+          </label>
+          <label>Пробег
+            <input id="orderMileage" inputmode="numeric">
+          </label>
+          <label>Работник
+            <select id="orderEmployee"></select>
+          </label>
+          <label>Комментарий
+            <textarea id="orderComment" rows="2"></textarea>
+          </label>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Позиции</h2>
+            <button id="addLineButton" class="secondary small" type="button">Добавить</button>
+          </div>
+          <div id="orderLines" class="list"></div>
+          <div class="total-row">
+            <span>Итого</span>
+            <strong id="orderTotal">0 ₽</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="clientsView" class="view hidden">
+        <form id="clientForm" class="panel">
+          <h2>Новый клиент</h2>
+          <label>ID клиента
+            <input id="clientId" inputmode="numeric" placeholder="0001">
+          </label>
+          <label>ФИО
+            <input id="clientName">
+          </label>
+          <label>Телефон
+            <input id="clientPhone" inputmode="tel">
+          </label>
+          <label>Техника
+            <input id="vehicleMake" placeholder="PitonMoto MX3">
+          </label>
+          <label>VIN
+            <input id="vehicleVin">
+          </label>
+          <button class="primary" type="submit">Создать клиента</button>
+        </form>
+        <div id="clientsList" class="list"></div>
+      </section>
+
+      <section id="catalogView" class="view hidden">
+        <form id="catalogForm" class="panel">
+          <h2>Новая позиция</h2>
+          <label>Тип
+            <select id="catalogCategory">
+              <option value="parts">Запчасть</option>
+              <option value="consumables">Расходник</option>
+              <option value="labor">Работа</option>
+            </select>
+          </label>
+          <label>ID
+            <input id="catalogDisplayId" inputmode="numeric">
+          </label>
+          <label>Артикул
+            <input id="catalogPartNumbers">
+          </label>
+          <label>Штрихкод
+            <input id="catalogBarcode" inputmode="numeric" placeholder="создастся автоматически">
+          </label>
+          <label>Раздел
+            <input id="catalogGroup">
+          </label>
+          <label>Название
+            <input id="catalogName">
+          </label>
+          <div class="grid two">
+            <label>Продажа
+              <input id="catalogPrice" inputmode="decimal">
+            </label>
+            <label>Закупка
+              <input id="catalogPurchase" inputmode="decimal">
+            </label>
+          </div>
+          <label>Остаток
+            <input id="catalogStock" inputmode="decimal" value="1">
+          </label>
+          <button class="primary" type="submit">Создать позицию</button>
+        </form>
+      </section>
+
+      <section id="savedView" class="view hidden">
+        <div id="ordersList" class="list"></div>
+      </section>
+
+      <nav class="tabbar">
+        <button data-view="orderView" class="active" type="button">Заказ</button>
+        <button data-view="clientsView" type="button">Клиенты</button>
+        <button data-view="catalogView" type="button">Товары</button>
+        <button data-view="savedView" type="button">Заказы</button>
+      </nav>
+    </section>
+  </main>
+
+  <dialog id="lineDialog">
+    <form method="dialog" class="dialog-card">
+      <h2>Добавить позицию</h2>
+      <label>Тип
+        <select id="lineCategory">
+          <option value="parts">Запчасти</option>
+          <option value="labor">Работы</option>
+          <option value="consumables">Расходники</option>
+        </select>
+      </label>
+      <label>Позиция
+        <select id="lineItem"></select>
+      </label>
+      <div class="grid two">
+        <label>Кол-во
+          <input id="lineQuantity" inputmode="decimal" value="1">
+        </label>
+        <label>Цена
+          <input id="linePrice" inputmode="decimal">
+        </label>
+      </div>
+      <menu>
+        <button value="cancel" class="secondary">Отмена</button>
+        <button id="confirmLineButton" value="default" class="primary">Добавить</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

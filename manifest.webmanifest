@@ -1,0 +1,9 @@
+{
+  "name": "АкадемМОТО",
+  "short_name": "АкадемМОТО",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111315",
+  "theme_color": "#111315",
+  "lang": "ru"
+}
