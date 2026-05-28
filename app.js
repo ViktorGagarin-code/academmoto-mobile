@@ -9,6 +9,7 @@ let openedClient = null;
 let scannerMode = "order";
 let scannerStream = null;
 let scannerTimer = null;
+let html5Scanner = null;
 let toastTimer = null;
 
 const state = {
@@ -652,11 +653,17 @@ async function openScanner(mode) {
   scannerMode = mode;
   $("manualBarcode").value = "";
   openDialog("scannerDialog");
-  if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) {
-    toast("Камера недоступна, введи штрихкод вручную");
+  $("scannerVideo").classList.add("hidden");
+  $("html5Scanner").classList.remove("hidden");
+  if (window.Html5Qrcode) {
+    await startHtml5Scanner();
     return;
   }
+  if (!navigator.mediaDevices?.getUserMedia) return toast("Камера недоступна, введи штрихкод вручную");
+  if (!("BarcodeDetector" in window)) return toast("Сканер не загрузился, введи штрихкод вручную");
   try {
+    $("html5Scanner").classList.add("hidden");
+    $("scannerVideo").classList.remove("hidden");
     scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     $("scannerVideo").srcObject = scannerStream;
     await $("scannerVideo").play();
@@ -670,9 +677,47 @@ async function openScanner(mode) {
   }
 }
 
-function closeScanner() {
+async function startHtml5Scanner() {
+  try {
+    if (html5Scanner) await stopHtml5Scanner();
+    const formats = window.Html5QrcodeSupportedFormats;
+    html5Scanner = new window.Html5Qrcode("html5Scanner", {
+      formatsToSupport: [
+        formats.EAN_13,
+        formats.EAN_8,
+        formats.CODE_128,
+        formats.CODE_39,
+        formats.UPC_A,
+        formats.UPC_E,
+        formats.QR_CODE
+      ],
+      verbose: false
+    });
+    await html5Scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 260, height: 150 }, aspectRatio: 1.333 },
+      (decodedText) => handleScannedBarcode(decodedText),
+      () => {}
+    );
+    toast("Наведи камеру на штрихкод");
+  } catch {
+    toast("Разреши доступ к камере или введи штрихкод вручную");
+  }
+}
+
+async function stopHtml5Scanner() {
+  if (!html5Scanner) return;
+  try {
+    if (html5Scanner.isScanning) await html5Scanner.stop();
+    await html5Scanner.clear();
+  } catch {}
+  html5Scanner = null;
+}
+
+async function closeScanner() {
   if (scannerTimer) clearInterval(scannerTimer);
   scannerTimer = null;
+  await stopHtml5Scanner();
   if (scannerStream) scannerStream.getTracks().forEach((track) => track.stop());
   scannerStream = null;
   $("scannerDialog").close();
