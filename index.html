@@ -47,6 +47,7 @@
       <section id="orderView" class="view">
         <div class="toolbar">
           <button id="newOrderButton" class="secondary" type="button">Новый</button>
+          <button id="masterModeButton" class="secondary" type="button">Мастер</button>
           <button id="saveOrderButton" class="primary" type="button">Сохранить</button>
         </div>
 
@@ -71,6 +72,14 @@
           <label>Работник
             <select id="orderEmployee"></select>
           </label>
+          <label>Статус
+            <select id="orderStatus">
+              <option value="accepted">Принято</option>
+              <option value="in_progress">В работе</option>
+              <option value="ready">Готов</option>
+              <option value="closed">Закрыт</option>
+            </select>
+          </label>
           <label>Комментарий
             <textarea id="orderComment" rows="2"></textarea>
           </label>
@@ -79,7 +88,10 @@
         <div class="panel">
           <div class="section-title">
             <h2>Позиции</h2>
-            <button id="addLineButton" class="secondary small" type="button">Добавить</button>
+            <div class="inline-actions">
+              <button id="scanToOrderButton" class="secondary small" type="button">Скан</button>
+              <button id="addLineButton" class="secondary small" type="button">Добавить</button>
+            </div>
           </div>
           <div id="orderLines" class="list"></div>
           <div class="total-row">
@@ -136,6 +148,7 @@
           <label>Штрихкод
             <input id="catalogBarcode" inputmode="numeric" placeholder="создастся автоматически">
           </label>
+          <button id="scanCatalogButton" class="secondary" type="button">Сканировать товар</button>
           <label>Раздел
             <input id="catalogGroup">
           </label>
@@ -165,6 +178,21 @@
       </section>
 
       <section id="savedView" class="view hidden">
+        <div class="panel">
+          <label>Поиск заказов
+            <input id="orderSearch" placeholder="Номер, клиент, техника">
+          </label>
+          <label>Статус
+            <select id="orderStatusFilter">
+              <option value="">Все</option>
+              <option value="accepted">Принято</option>
+              <option value="in_progress">В работе</option>
+              <option value="ready">Готов</option>
+              <option value="closed">Закрыт</option>
+              <option value="not_paid">Не оплачен</option>
+            </select>
+          </label>
+        </div>
         <div id="ordersList" class="list"></div>
       </section>
 
@@ -190,6 +218,7 @@
       <label>Поиск
         <input id="lineSearch" placeholder="Название, ID, артикул, штрихкод">
       </label>
+      <button id="scanLineButton" class="secondary" type="button">Сканировать штрихкод</button>
       <label>Позиция
         <select id="lineItem"></select>
       </label>
@@ -220,6 +249,114 @@
         <span>Итого</span>
         <strong id="orderDialogTotal">0 ₽</strong>
       </div>
+      <div id="orderDialogPayments" class="details compact-details"></div>
+      <menu class="three">
+        <button id="editOrderButton" class="secondary" type="button">Редактировать</button>
+        <button id="payOrderButton" class="secondary" type="button">Оплата</button>
+        <button id="deleteOrderButton" class="danger" type="button">Удалить</button>
+      </menu>
+    </div>
+  </dialog>
+
+  <dialog id="paymentDialog">
+    <form method="dialog" class="dialog-card">
+      <h2 id="paymentTitle">Оплата</h2>
+      <label>Сумма
+        <input id="paymentAmount" inputmode="decimal">
+      </label>
+      <label>Комментарий
+        <input id="paymentComment">
+      </label>
+      <menu>
+        <button value="cancel" class="secondary">Отмена</button>
+        <button id="confirmPaymentButton" value="default" class="primary">Добавить</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="catalogDialog">
+    <form method="dialog" class="dialog-card">
+      <h2 id="catalogDialogTitle">Товар</h2>
+      <label>Название
+        <input id="editCatalogName">
+      </label>
+      <div class="grid two">
+        <label>Продажа
+          <input id="editCatalogPrice" inputmode="decimal">
+        </label>
+        <label>Закупка
+          <input id="editCatalogPurchase" inputmode="decimal">
+        </label>
+      </div>
+      <div class="grid two">
+        <label>Остаток
+          <input id="editCatalogStock" inputmode="decimal">
+        </label>
+        <label>Мин. остаток
+          <input id="editCatalogMinStock" inputmode="decimal">
+        </label>
+      </div>
+      <label>Штрихкод
+        <input id="editCatalogBarcode" inputmode="numeric">
+      </label>
+      <button id="scanCatalogEditButton" class="secondary" type="button">Сканировать штрихкод</button>
+      <label>Раздел
+        <input id="editCatalogGroup">
+      </label>
+      <label>Артикул
+        <input id="editCatalogPartNumbers">
+      </label>
+      <label>Фото
+        <input id="editCatalogPhoto">
+      </label>
+      <div class="grid two">
+        <label>Приход
+          <input id="receiptQuantity" inputmode="decimal" placeholder="кол-во">
+        </label>
+        <label>Закупка прихода
+          <input id="receiptPurchase" inputmode="decimal">
+        </label>
+      </div>
+      <menu class="three">
+        <button value="cancel" class="secondary">Закрыть</button>
+        <button id="receiptButton" class="secondary" type="button">Приход</button>
+        <button id="saveCatalogEditButton" value="default" class="primary">Сохранить</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="clientDialog">
+    <div class="dialog-card">
+      <div class="section-title">
+        <h2 id="clientDialogTitle">Клиент</h2>
+        <button id="closeClientDialog" class="secondary small" type="button">×</button>
+      </div>
+      <div id="clientDialogInfo" class="details"></div>
+      <h2>Техника</h2>
+      <div id="clientDialogVehicles" class="list"></div>
+      <h2>Заказы</h2>
+      <div id="clientDialogOrders" class="list"></div>
+      <menu>
+        <button id="newClientOrderButton" class="primary" type="button">Новый заказ</button>
+        <button id="closeClientDialogBottom" class="secondary" type="button">Закрыть</button>
+      </menu>
+    </div>
+  </dialog>
+
+  <dialog id="scannerDialog">
+    <div class="dialog-card">
+      <div class="section-title">
+        <h2>Сканер</h2>
+        <button id="closeScannerButton" class="secondary small" type="button">×</button>
+      </div>
+      <video id="scannerVideo" class="scanner-video" playsinline muted></video>
+      <label>Штрихкод
+        <input id="manualBarcode" inputmode="numeric" placeholder="можно ввести вручную">
+      </label>
+      <menu>
+        <button id="manualBarcodeButton" class="primary" type="button">Найти</button>
+        <button id="stopScannerButton" class="secondary" type="button">Закрыть</button>
+      </menu>
     </div>
   </dialog>
 
