@@ -658,21 +658,26 @@ async function openScanner(mode) {
   $("barcodePhotoInput").value = "";
   $("scannerStatus").textContent = "Запускаю камеру...";
   openDialog("scannerDialog");
-  $("zxingScannerBox").classList.add("hidden");
-  $("html5Scanner").classList.remove("hidden");
+  $("html5Scanner").classList.add("hidden");
+  $("zxingScannerBox").classList.remove("hidden");
   if (window.ZXing && navigator.mediaDevices?.getUserMedia) {
     await startZxingScanner();
     return;
   }
   if (window.Html5Qrcode) return startHtml5Scanner();
   if (!navigator.mediaDevices?.getUserMedia) return toast("Камера недоступна, введи штрихкод вручную");
-  if (!("BarcodeDetector" in window)) return toast("Сканер не загрузился, введи штрихкод вручную");
+  await startNativeScanner();
+}
+
+async function startNativeScanner() {
   try {
     $("html5Scanner").classList.add("hidden");
     $("zxingScannerBox").classList.remove("hidden");
     scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     $("scannerVideo").srcObject = scannerStream;
     await $("scannerVideo").play();
+    $("scannerStatus").textContent = "Камера открыта. Помести код в рамку или нажми Фото.";
+    if (!("BarcodeDetector" in window)) return;
     const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code"] });
     scannerTimer = setInterval(async () => {
       const codes = await detector.detect($("scannerVideo"));
@@ -686,7 +691,7 @@ async function openScanner(mode) {
 async function startZxingScanner() {
   try {
     $("html5Scanner").classList.add("hidden");
-    $("scannerVideo").classList.remove("hidden");
+    $("zxingScannerBox").classList.remove("hidden");
     const formats = [
       ZXing.BarcodeFormat.EAN_13,
       ZXing.BarcodeFormat.EAN_8,
@@ -707,11 +712,7 @@ async function startZxingScanner() {
       if (result && isResultCentered(result)) handleScannedBarcode(result.getText());
     });
   } catch {
-    if (window.Html5Qrcode) {
-      await startHtml5Scanner();
-    } else {
-      toast("Камера недоступна, попробуй кнопку Фото");
-    }
+    await startNativeScanner();
   }
 }
 
@@ -760,6 +761,8 @@ async function closeScanner() {
     zxingReader = null;
   }
   await stopHtml5Scanner();
+  $("scannerVideo").pause();
+  $("scannerVideo").srcObject = null;
   if (scannerStream) scannerStream.getTracks().forEach((track) => track.stop());
   scannerStream = null;
   $("zxingScannerBox").classList.add("hidden");
