@@ -175,6 +175,14 @@ function showView(viewID) {
   $("viewTitle").textContent = { orderView: "Заказ", clientsView: "Клиенты", catalogView: "Товары", savedView: "Заказы" }[viewID];
 }
 
+function openDialog(id) {
+  const dialog = $(id);
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  dialog.setAttribute("tabindex", "-1");
+  dialog.showModal();
+  requestAnimationFrame(() => dialog.focus({ preventScroll: true }));
+}
+
 function newOrder() {
   editingOrderID = null;
   state.lines = [];
@@ -209,7 +217,7 @@ function openLineDialog() {
   $("lineSearch").value = "";
   $("lineQuantity").value = "1";
   fillLineItems();
-  $("lineDialog").showModal();
+  openDialog("lineDialog");
 }
 
 function fillLineItems() {
@@ -461,7 +469,7 @@ async function openOrderDetails(order) {
     <div><span>Оплачено</span><strong>${money(paid)}</strong></div>
     <div><span>Осталось</span><strong>${money(Math.max(0, total - paid))}</strong></div>
   `;
-  $("orderDialog").showModal();
+  openDialog("orderDialog");
 }
 
 async function fetchOrderLines(orderID) {
@@ -509,7 +517,7 @@ function openPaymentDialog(order) {
   $("paymentTitle").textContent = `Оплата №${order.number}`;
   $("paymentAmount").value = Math.max(0, total - paidTotal(order.id)).toFixed(0);
   $("paymentComment").value = "";
-  $("paymentDialog").showModal();
+  openDialog("paymentDialog");
 }
 
 async function addPayment(event) {
@@ -547,7 +555,7 @@ function openCatalogCard(item) {
   $("editCatalogPhoto").value = item.photo_path || "";
   $("receiptQuantity").value = "";
   $("receiptPurchase").value = Number(item.purchase_price || 0).toFixed(2);
-  $("catalogDialog").showModal();
+  openDialog("catalogDialog");
 }
 
 async function saveCatalogEdit(event) {
@@ -628,7 +636,7 @@ function openClientCard(client) {
     });
     $("clientDialogOrders").append(row);
   });
-  $("clientDialog").showModal();
+  openDialog("clientDialog");
 }
 
 function createOrderForOpenedClient() {
@@ -643,7 +651,7 @@ function createOrderForOpenedClient() {
 async function openScanner(mode) {
   scannerMode = mode;
   $("manualBarcode").value = "";
-  $("scannerDialog").showModal();
+  openDialog("scannerDialog");
   if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) {
     toast("Камера недоступна, введи штрихкод вручную");
     return;
