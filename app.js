@@ -9,6 +9,8 @@ let state = {
   orders: [],
   lines: []
 };
+let savingOrder = false;
+let toastTimer;
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 }).format(Number(value) || 0);
@@ -24,11 +26,16 @@ document.addEventListener("DOMContentLoaded", () => {
   $("newOrderButton").addEventListener("click", newOrder);
   $("saveOrderButton").addEventListener("click", saveOrder);
   $("addLineButton").addEventListener("click", openLineDialog);
+  $("orderClient").addEventListener("change", fillOrderVehicleFromClient);
   $("confirmLineButton").addEventListener("click", addLine);
   $("lineCategory").addEventListener("change", fillLineItems);
+  $("lineSearch").addEventListener("input", fillLineItems);
   $("lineItem").addEventListener("change", fillLinePrice);
   $("clientForm").addEventListener("submit", saveClient);
   $("catalogForm").addEventListener("submit", saveCatalogItem);
+  $("clientSearch").addEventListener("input", renderClients);
+  $("catalogSearch").addEventListener("input", renderCatalog);
+  $("closeOrderDialog").addEventListener("click", () => $("orderDialog").close());
   document.querySelectorAll(".tabbar button").forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
 });
 
@@ -77,6 +84,7 @@ async function loadAll() {
     state.orders = orders.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     fillSelectors();
     renderClients();
+    renderCatalog();
     renderOrders();
     renderLines();
     toast("Синхронизировано");
@@ -95,6 +103,7 @@ function fillSelectors() {
   fillSelect($("orderClient"), state.clients, (client) => `${client.id} — ${client.full_name}`, (client) => client.id);
   fillSelect($("orderEmployee"), [{ id: "", name: "Не выбран" }, ...state.employees], (employee) => employee.name, (employee) => employee.id);
   fillLineItems();
+  if (!$("orderVehicle").value) fillOrderVehicleFromClient();
   const maxNumber = Math.max(0, ...state.orders.map((order) => Number(order.number) || 0));
   if (!$("orderNumber").value) $("orderNumber").value = String(maxNumber + 1).padStart(4, "0");
 }
@@ -128,20 +137,29 @@ function newOrder() {
   $("orderMileage").value = "";
   $("orderComment").value = "";
   $("orderEmployee").value = "";
+  fillOrderVehicleFromClient();
   const maxNumber = Math.max(0, ...state.orders.map((order) => Number(order.number) || 0));
   $("orderNumber").value = String(maxNumber + 1).padStart(4, "0");
   renderLines();
 }
 
+function fillOrderVehicleFromClient() {
+  const vehicle = state.vehicles.find((row) => row.client_id === $("orderClient").value);
+  $("orderVehicle").value = vehicle ? [vehicle.make, vehicle.vin].filter(Boolean).join(" / VIN ") : "";
+  if (vehicle?.mileage) $("orderMileage").value = vehicle.mileage;
+}
+
 function openLineDialog() {
+  $("lineSearch").value = "";
   fillLineItems();
   $("lineDialog").showModal();
 }
 
 function fillLineItems() {
   const category = $("lineCategory").value;
-  const rows = state.catalog.filter((item) => item.category === category && item.deleted_at == null);
-  fillSelect($("lineItem"), rows, (item) => item.name, (item) => item.id);
+  const search = $("lineSearch").value.trim().toLowerCase();
+  const rows = state.catalog.filter((item) => item.category === category && item.deleted_at == null && catalogMatches(item, search));
+  fillSelect($("lineItem"), rows, (item) => catalogOptionTitle(item), (item) => item.id);
   fillLinePrice();
 }
 
@@ -194,6 +212,7 @@ function lineTotal(line) {
 }
 
 async function saveOrder() {
+  if (savingOrder) return;
   if (!state.lines.length) {
     toast("Добавь позиции");
     return;
@@ -221,13 +240,29 @@ async function saveOrder() {
     employee_name: employee?.name || ""
   };
   const lines = state.lines.map((line) => ({ ...line, order_id: orderID }));
-  const { error: orderError } = await supabase.from("work_orders").insert(order);
-  if (orderError) return toast(orderError.message);
-  const { error: linesError } = await supabase.from("order_lines").insert(lines);
-  if (linesError) return toast(linesError.message);
-  await loadAll();
-  newOrder();
-  toast("Заказ создан");
+  savingOrder = true;
+  $("saveOrderButton").disabled = true;
+  $("saveOrderButton").textContent = "Сохраняю";
+  try {
+    const { error: orderError } = await supabase.from("work_orders").insert(order);
+    if (orderError) {
+      toast(orderError.message);
+      return;
+    }
+    const { error: linesError } = await supabase.from("order_lines").insert(lines);
+    if (linesError) {
+      await supabase.from("work_orders").delete().eq("id", orderID);
+      toast(linesError.message);
+      return;
+    }
+    await loadAll();
+    newOrder();
+    toast(`Заказ №${order.number} создан`, "success");
+  } finally {
+    savingOrder = false;
+    $("saveOrderButton").disabled = false;
+    $("saveOrderButton").textContent = "Сохранить";
+  }
 }
 
 async function saveClient(event) {
@@ -242,6 +277,7 @@ async function saveClient(event) {
   if (error) return toast(error.message);
   if ($("vehicleMake").value.trim() || $("vehicleVin").value.trim()) {
     const { error: vehicleError } = await supabase.from("vehicles").insert({
+      id: crypto.randomUUID(),
       client_id: id,
       make: $("vehicleMake").value.trim(),
       vin: $("vehicleVin").value.trim()
@@ -283,12 +319,29 @@ async function saveCatalogItem(event) {
 
 function renderClients() {
   $("clientsList").innerHTML = "";
-  state.clients.slice(0, 40).forEach((client) => {
-    const vehicle = state.vehicles.find((row) => row.client_id === client.id);
+  const search = $("clientSearch").value.trim().toLowerCase();
+  state.clients.filter((client) => clientMatches(client, search)).slice(0, 80).forEach((client) => {
+    const vehicles = state.vehicles.filter((row) => row.client_id === client.id);
+    const vehicleText = vehicles.map((vehicle) => [vehicle.make, vehicle.vin].filter(Boolean).join(" / ")).filter(Boolean).join(" · ");
     const row = document.createElement("div");
     row.className = "item";
-    row.innerHTML = `<strong>${client.id} · ${escapeHTML(client.full_name)}</strong><div class="meta">${escapeHTML(client.phone || "")}${vehicle ? ` · ${escapeHTML(vehicle.make || "")}` : ""}</div>`;
+    row.innerHTML = `<strong>${client.id} · ${escapeHTML(client.full_name)}</strong><div class="meta">${escapeHTML(client.phone || "")}${vehicleText ? ` · ${escapeHTML(vehicleText)}` : ""}</div>`;
     $("clientsList").append(row);
+  });
+}
+
+function renderCatalog() {
+  $("catalogList").innerHTML = "";
+  const search = $("catalogSearch").value.trim().toLowerCase();
+  state.catalog.filter((item) => catalogMatches(item, search)).slice(0, 120).forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <strong>${escapeHTML(item.name || "")}</strong>
+      <div class="meta">${categoryTitle(item.category)} · ID ${escapeHTML(item.display_id || "-")} · ${money(item.price)} · Остаток ${Number(item.stock || 0)}</div>
+      <div class="meta">${escapeHTML([item.part_numbers, item.barcode].filter(Boolean).join(" · "))}</div>
+    `;
+    $("catalogList").append(row);
   });
 }
 
@@ -296,10 +349,48 @@ function renderOrders() {
   $("ordersList").innerHTML = "";
   state.orders.slice(0, 60).forEach((order) => {
     const row = document.createElement("div");
-    row.className = "item";
+    row.className = "item clickable";
     row.innerHTML = `<strong>№ ${escapeHTML(order.number)} · ${escapeHTML(order.client_name)}</strong><div class="meta">${new Date(order.date).toLocaleDateString("ru-RU")} · ${statusTitle(order.status)} · ${escapeHTML(order.vehicle_make || "")}</div>`;
+    row.addEventListener("click", () => openOrderDetails(order));
     $("ordersList").append(row);
   });
+}
+
+async function openOrderDetails(order) {
+  $("orderDialogTitle").textContent = `Заказ №${order.number}`;
+  $("orderDialogInfo").innerHTML = `
+    <div><span>Дата</span><strong>${new Date(order.date).toLocaleDateString("ru-RU")}</strong></div>
+    <div><span>Клиент</span><strong>${escapeHTML(order.client_name || "")}</strong></div>
+    <div><span>Телефон</span><strong>${escapeHTML(order.client_phone || "")}</strong></div>
+    <div><span>Техника</span><strong>${escapeHTML(order.vehicle_make || "")}</strong></div>
+    <div><span>Пробег</span><strong>${escapeHTML(order.mileage || "")}</strong></div>
+    <div><span>Статус</span><strong>${statusTitle(order.status)}</strong></div>
+  `;
+  $("orderDialogLines").innerHTML = `<div class="item"><div class="meta">Загрузка позиций...</div></div>`;
+  $("orderDialogTotal").textContent = money(0);
+  $("orderDialog").showModal();
+  const { data, error } = await supabase
+    .from("order_lines")
+    .select("*")
+    .eq("order_id", order.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+  if (error) {
+    $("orderDialogLines").innerHTML = `<div class="item"><div class="meta">${escapeHTML(error.message)}</div></div>`;
+    return;
+  }
+  const lines = data || [];
+  $("orderDialogLines").innerHTML = "";
+  lines.forEach((line) => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <strong>${escapeHTML(line.name || "")}</strong>
+      <div class="meta">${categoryTitle(line.category)} · ${Number(line.quantity || 0)} × ${money(line.price)} · скидка ${Number(line.discount || 0)}% · ${money(lineTotal(line))}</div>
+    `;
+    $("orderDialogLines").append(row);
+  });
+  $("orderDialogTotal").textContent = money(lines.reduce((sum, line) => sum + lineTotal(line), 0));
 }
 
 function nextDisplayID(category) {
@@ -312,6 +403,34 @@ function generatedBarcode(category, displayID) {
   return prefix + String(Number(displayID) || 0).padStart(8, "0");
 }
 
+function catalogMatches(item, search) {
+  if (!search) return true;
+  return [
+    item.name,
+    item.display_id,
+    item.part_numbers,
+    item.barcode,
+    item.item_group,
+    categoryTitle(item.category)
+  ].some((value) => String(value || "").toLowerCase().includes(search));
+}
+
+function catalogOptionTitle(item) {
+  const code = item.barcode || item.part_numbers || item.display_id || "";
+  return [item.name, code].filter(Boolean).join(" · ");
+}
+
+function clientMatches(client, search) {
+  if (!search) return true;
+  const vehicles = state.vehicles.filter((vehicle) => vehicle.client_id === client.id);
+  return [
+    client.id,
+    client.full_name,
+    client.phone,
+    ...vehicles.flatMap((vehicle) => [vehicle.make, vehicle.vin, vehicle.plate])
+  ].some((value) => String(value || "").toLowerCase().includes(search));
+}
+
 function categoryTitle(category) {
   return { parts: "Запчасти", labor: "Работы", consumables: "Расходники" }[category] || category;
 }
@@ -320,10 +439,11 @@ function statusTitle(status) {
   return { accepted: "Принято", in_progress: "В работе", ready: "Готов", closed: "Закрыт" }[status] || status;
 }
 
-function toast(message) {
+function toast(message, type = "") {
+  clearTimeout(toastTimer);
   $("toast").textContent = message;
-  $("toast").classList.remove("hidden");
-  setTimeout(() => $("toast").classList.add("hidden"), 2400);
+  $("toast").className = `toast ${type}`.trim();
+  toastTimer = setTimeout(() => $("toast").classList.add("hidden"), 3800);
 }
 
 function escapeHTML(value) {

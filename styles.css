@@ -135,6 +135,10 @@ button {
   font-weight: 800;
 }
 
+button:disabled {
+  opacity: .62;
+}
+
 .primary { background: var(--accent); }
 .secondary { background: var(--panel-2); }
 .small { min-height: 34px; padding: 0 11px; }
@@ -165,6 +169,14 @@ button {
 .item .meta {
   color: var(--muted);
   font-size: 13px;
+}
+
+.item.clickable {
+  cursor: pointer;
+}
+
+.item.clickable:active {
+  border-color: var(--accent);
 }
 
 .line-row {
@@ -234,6 +246,30 @@ dialog::backdrop {
   border-radius: 8px;
 }
 
+.details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.details div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.details span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.details strong {
+  overflow-wrap: anywhere;
+}
+
 menu {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -254,6 +290,11 @@ menu {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 12px 30px rgba(0,0,0,.35);
+}
+
+.toast.success {
+  background: #123a27;
+  border-color: var(--good);
 }
 
 .error {

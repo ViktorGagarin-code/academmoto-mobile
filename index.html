@@ -109,6 +109,11 @@
           </label>
           <button class="primary" type="submit">Создать клиента</button>
         </form>
+        <div class="panel">
+          <label>Поиск клиентов
+            <input id="clientSearch" placeholder="ФИО, телефон, техника, VIN">
+          </label>
+        </div>
         <div id="clientsList" class="list"></div>
       </section>
 
@@ -150,6 +155,13 @@
           </label>
           <button class="primary" type="submit">Создать позицию</button>
         </form>
+        <div class="panel">
+          <h2>Все товары</h2>
+          <label>Поиск товаров
+            <input id="catalogSearch" placeholder="Название, ID, артикул, штрихкод">
+          </label>
+        </div>
+        <div id="catalogList" class="list"></div>
       </section>
 
       <section id="savedView" class="view hidden">
@@ -175,6 +187,9 @@
           <option value="consumables">Расходники</option>
         </select>
       </label>
+      <label>Поиск
+        <input id="lineSearch" placeholder="Название, ID, артикул, штрихкод">
+      </label>
       <label>Позиция
         <select id="lineItem"></select>
       </label>
@@ -191,6 +206,21 @@
         <button id="confirmLineButton" value="default" class="primary">Добавить</button>
       </menu>
     </form>
+  </dialog>
+
+  <dialog id="orderDialog">
+    <div class="dialog-card">
+      <div class="section-title">
+        <h2 id="orderDialogTitle">Заказ</h2>
+        <button id="closeOrderDialog" class="secondary small" type="button">×</button>
+      </div>
+      <div id="orderDialogInfo" class="details"></div>
+      <div id="orderDialogLines" class="list"></div>
+      <div class="total-row">
+        <span>Итого</span>
+        <strong id="orderDialogTotal">0 ₽</strong>
+      </div>
+    </div>
   </dialog>
 
   <div id="toast" class="toast hidden"></div>
